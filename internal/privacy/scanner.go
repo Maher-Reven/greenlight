@@ -98,9 +98,9 @@ var trackingSDKPatterns = []struct {
 	Pattern *regexp.Regexp
 	Name    string
 }{
-	{regexp.MustCompile(`(?i)(firebaseanalytics|firebase[-/]analytics)`), "Firebase Analytics"},
+	{regexp.MustCompile(`(?i)(firebaseanalytics|firebase[-/.](?:compat/)?analytics)`), "Firebase Analytics"},
 	{regexp.MustCompile(`(?i)(googleanalytics|google-analytics)`), "Google Analytics"},
-	{regexp.MustCompile(`(?i)(fbsdk|facebooksdk|facebook-sdk)`), "Facebook SDK"},
+	{regexp.MustCompile(`(?i)(fbsdk|facebook-?(?:ios-|android-|js)?sdk)`), "Facebook SDK"},
 	{regexp.MustCompile(`(?i)(adjust[-_]?sdk|react-native-adjust|com\.adjust\b|Adjust\.(appDidLaunch|trackEvent|initSdk|getAdid))`), "Adjust SDK"},
 	{regexp.MustCompile(`(?i)appsflyer`), "AppsFlyer"},
 	{regexp.MustCompile(`(?i)(import\s+Amplitude|AmplitudeSwift|amplitude\.init|Amplitude\.instance|amplitude-js|@amplitude/)`), "Amplitude"},
