@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -260,6 +261,8 @@ func Scan(projectPath string) (*ScanResult, error) {
 	for sdk := range trackingSDKsFound {
 		result.TrackingSDKs = append(result.TrackingSDKs, sdk)
 	}
+	// Map iteration is randomised, so sort for a stable report.
+	sort.Strings(result.TrackingSDKs)
 
 	if len(trackingSDKsFound) > 0 && !hasATT {
 		sdkList := strings.Join(result.TrackingSDKs, ", ")
@@ -272,7 +275,7 @@ func Scan(projectPath string) (*ScanResult, error) {
 		}
 		// Cite where the first SDK was matched, so the finding can be checked
 		// against the source the way the Required Reason findings already can be.
-		if hit, ok := trackingSDKHits[result.TrackingSDKs[0]]; ok {
+		if hit, ok := earliestHit(trackingSDKHits); ok {
 			finding.File = hit.File
 			finding.Line = hit.Line
 			finding.Detail += " First seen at " + hit.File + ":" + fmt.Sprint(hit.Line) + "."
@@ -359,6 +362,21 @@ func parsePrivacyManifest(content string) []string {
 		apis = append(apis, m)
 	}
 	return apis
+}
+
+// earliestHit returns the hit that comes first in the project, ordered by file
+// then line. Ranging over the map directly would pick an arbitrary SDK, so the
+// cited location — and "first seen" — would change between runs.
+func earliestHit(hits map[string]FileHit) (FileHit, bool) {
+	var earliest FileHit
+	found := false
+	for _, hit := range hits {
+		if !found || hit.File < earliest.File || (hit.File == earliest.File && hit.Line < earliest.Line) {
+			earliest = hit
+			found = true
+		}
+	}
+	return earliest, found
 }
 
 // isCommentLine reports whether a source line is a single-line or block comment.

@@ -1,8 +1,10 @@
 package privacy
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -135,4 +137,47 @@ func TestTrackingFindingCitesFileAndLine(t *testing.T) {
 		return
 	}
 	t.Fatalf("no §5.1.2 finding produced; findings=%+v", res.Findings)
+}
+
+// TrackingSDKs is built by ranging over a map, and Go randomises map iteration, so
+// both the reported SDK list and the cited location used to change between runs on
+// a project using more than one SDK. The list is sorted, and the citation is the
+// genuinely earliest hit by file then line rather than whichever key came out first.
+func TestTrackingFindingIsDeterministic(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "A.swift", "import AppsFlyerLib\n")
+	writeFile(t, dir, "B.swift", "import Mixpanel\n")
+	writeFile(t, dir, "C.swift", "import AppLovinSDK\n")
+
+	var first string
+	for i := 0; i < 25; i++ {
+		res, err := Scan(dir)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+
+		if want := []string{"AppLovin", "AppsFlyer", "Mixpanel"}; !slices.Equal(res.TrackingSDKs, want) {
+			t.Fatalf("TrackingSDKs = %v, want %v (sorted)", res.TrackingSDKs, want)
+		}
+
+		var got string
+		for _, f := range res.Findings {
+			if f.Guideline == "5.1.2" {
+				got = fmt.Sprintf("%s:%d|%s", f.File, f.Line, f.Detail)
+			}
+		}
+		if got == "" {
+			t.Fatalf("no §5.1.2 finding; findings=%+v", res.Findings)
+		}
+		if i == 0 {
+			first = got
+			if !strings.HasPrefix(got, "A.swift:1|") {
+				t.Errorf("citation = %q, want the earliest hit A.swift:1", got)
+			}
+			continue
+		}
+		if got != first {
+			t.Fatalf("finding changed between runs:\n  run 0: %s\n  run %d: %s", first, i, got)
+		}
+	}
 }
